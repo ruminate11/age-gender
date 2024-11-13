@@ -1,31 +1,28 @@
-from flask import Flask, render_template, request, jsonify
+import streamlit as st
 import cv2
 import numpy as np
 import base64
-from detect import detect_gender_age  # Importing the detect_gender_age function from detect.py
+from detect import detect_gender_age  # Import the detect_gender_age function from detect.py
 
-app = Flask(__name__)
+# Streamlit App
+st.title("Age and Gender Detection")
 
-@app.route('/')
-def index():
-    return render_template('index.html')  # Make sure index.html is present in the 'templates' folder
+# Image upload widget
+uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
-@app.route('/process_frame', methods=['POST'])
-def process_frame():
-    data = request.json['image']
-    # Decode the base64 image
-    encoded_data = data.split(',')[1]
-    nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+if uploaded_file is not None:
+    # Convert the uploaded image into a format OpenCV can work with
+    file_bytes = uploaded_file.read()
+    np_arr = np.frombuffer(file_bytes, np.uint8)
+    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-    # Process the frame with detect_gender_age function from detect.py
-    processed_frame, results = detect_gender_age(frame)
+    # Process the image with the detect_gender_age function
+    processed_img, results = detect_gender_age(img)
+
+    # Display the results
+    st.image(processed_img, channels="BGR", caption="Processed Image")
     
-    # Encode the processed frame back to base64
-    _, buffer = cv2.imencode('.jpg', processed_frame)
-    processed_data = base64.b64encode(buffer).decode('utf-8')
+    # Show the results (age, gender)
+    for result in results:
+        st.write(result)
 
-    return jsonify({'image': 'data:image/jpeg;base64,' + processed_data})
-
-if __name__ == "__main__":
-    app.run(debug=True)  # Change debug=False when deploying to production
